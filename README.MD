@@ -1,38 +1,38 @@
-# Принцип разделения интерфейсов (ISP) на практическом примере
+# Interface Segregation Principle (ISP) in Practice: A Practical Example
 
-## Клиенты интерфейса: кто они?
+## Interface Clients: Who Are They?
 
-**Клиент** — это код, использующий интерфейс.
+A **client** is the code that uses an interface.
 
-Ключевые моменты:
-- Именно клиенты формируют требования к интерфейсу.
-- Зависимость клиентов ограничивается методами интерфейса.
-- Разным клиентам могут быть нужны различные части интерфейса.
+**Key Points:**
+- Clients define the requirements for the interface.
+- Client dependencies are limited to the interface's methods.
+- Different clients may need different parts of the interface.
 
-Как отмечал Мартин Фаулер: **"абстракции всегда должны определяться их клиентами"**. Это подразумевает:
-- Методы интерфейса определяются клиентами.
-- Реализации интерфейсов адаптируются под запросы клиентов, а не наоборот.
-- Проектирование интерфейсов ориентировано на их использование, а не на внутреннюю реализацию.
+As Martin Fowler noted, **"Abstractions should always be defined by their clients."** This implies:
+- Interface methods are determined by clients.
+- Interface implementations are adapted to client requests, not the other way around.
+- Interface design is focused on usage rather than internal implementation.
 
-Пример **клиентов** из системы управления пользователями:
-- **Сервис аутентификации** требует только метода получения пользователя по ID.
-- **Сервис регистрации** нуждается исключительно в методе добавления пользователей.
-- **Административная панель** использует функциональность для получения списка всех пользователей.
+**Example of Clients** in a user management system:
+- **Authentication Service** only requires a method to retrieve a user by ID.
+- **Registration Service** only needs a method to add users.
+- **Administrative Panel** uses functionality to retrieve a list of all users.
 
-Таким образом, интерфейс должен быть продуман так, чтобы **учитывать индивидуальные потребности всех его клиентов.**
+Thus, the interface should be thoughtfully designed to **accommodate the individual needs of all its clients.**
 
-## Принцип разделения интерфейсов (ISP)
+## Interface Segregation Principle (ISP)
 
-**Interface Segregation Principle (ISP)** гласит: "Клиенты не должны зависеть от интерфейсов, которые они не используют."
+The **Interface Segregation Principle (ISP)** states: "Clients should not be forced to depend on interfaces they do not use."
 
-Этот принцип предполагает:
-- Интерфейсы должны быть маленькими и специализированными
-- Каждый интерфейс должен служить конкретной цели
-- Клиенты должны видеть и использовать только нужные им методы
+This principle entails:
+- Interfaces should be small and specialized.
+- Each interface should serve a specific purpose.
+- Clients should only see and use the methods they need.
 
-## Проблема: нарушение ISP на практике
+## The Problem: Violating ISP in Practice
 
-Рассмотрим пример системы с пользователями. Изначально мы создали один большой интерфейс:
+Let's consider an example of a user system. Initially, we created one large interface:
 
 ```python
 from typing import Protocol
@@ -51,7 +51,7 @@ class UserGateway(Protocol):
     async def get_all(self) -> list[User]: ...
 ```
 
-### SQL реализация
+### SQL Implementation
 
 ```python
 class DBUserGateway(UserGateway):
@@ -70,9 +70,9 @@ class DBUserGateway(UserGateway):
         ]
 ```
 
-### Возникновение проблемы
+### The Problem Arises
 
-Когда потребовалось добавить кеширование в Redis, мы столкнулись с проблемой:
+When caching with Redis was needed, we encountered a problem:
 
 ```python
 class RedisUserGateway(UserGateway):
@@ -88,15 +88,15 @@ class RedisUserGateway(UserGateway):
         raise NotImplementedError("get_all is not supported in Redis")
 ```
 
-### Проблемы такого подхода:
+### Problems with This Approach:
 
-1. Redis-реализация вынуждена реализовывать ненужный метод
-2. Клиенты зависят от методов, которые им не нужны
-3. Тестирование усложняется необходимостью мокать неиспользуемые методы
+1. The Redis implementation is forced to implement an unnecessary method.
+2. Clients depend on methods they do not need.
+3. Testing becomes complicated due to the need to mock unused methods.
 
-## Решение: применение ISP
+## Solution: Applying ISP
 
-Разделим большой интерфейс на специализированные:
+Let's split the large interface into specialized ones:
 
 ```python
 class UserByIdGetter(Protocol):
@@ -109,9 +109,9 @@ class UserLister(Protocol):
     async def get_all(self) -> list[User]: ...
 ```
 
-### Новые реализации
+### New Implementations
 
-SQL реализация использует все интерфейсы:
+The SQL implementation uses all interfaces:
 
 ```python
 class DBUserGateway(UserByIdGetter, UserAdder, UserLister):
@@ -130,7 +130,7 @@ class DBUserGateway(UserByIdGetter, UserAdder, UserLister):
         ]
 ```
 
-Redis реализация использует только нужные интерфейсы:
+The Redis implementation uses only the necessary interfaces:
 
 ```python
 class RedisUserGateway(UserByIdGetter, UserAdder):
@@ -142,27 +142,27 @@ class RedisUserGateway(UserByIdGetter, UserAdder):
         print(f"Adding user {user.id} with balance {user.balance} to Redis")
 ```
 
-## Преимущества полученного решения
+## Advantages of the Resulting Solution
 
-1. **Гибкость**: клиенты зависят только от нужных им методов
-2. **Простота тестирования**: нет необходимости мокать неиспользуемые методы
-3. **Ясность намерений**: каждый интерфейс имеет четкую ответственность
-4. **Легкость расширения**: новые реализации могут использовать только нужные интерфейсы
+1. **Flexibility**: Clients depend only on the methods they need.
+2. **Ease of Testing**: No need to mock unused methods.
+3. **Clarity of Intent**: Each interface has a clear responsibility.
+4. **Ease of Extension**: New implementations can use only the interfaces they need.
 
-## Заключение
+## Conclusion
 
-Следование принципу ISP позволяет создавать более гибкие и поддерживаемые системы. Ключевые моменты:
-- Интерфейсы должны формироваться исходя из потребностей клиентов
-- Лучше иметь много маленьких специализированных интерфейсов
-- Реализации должны иметь возможность использовать только нужные им интерфейсы
+Adhering to the ISP allows for creating more flexible and maintainable systems. Key points:
+- Interfaces should be shaped based on client needs.
+- It's better to have many small, specialized interfaces.
+- Implementations should be able to use only the interfaces they need.
 
-## Источники
+## References
 
 1. [The Interface Segregation Principle by Robert C. Martin](https://www.webcitation.org/6AL2qqIGg?url=http://www.objectmentor.com/resources/articles/isp.pdf)  
-   Статья о принципе разделения интерфейсов, которая подчеркивает важность проектирования интерфейсов, ориентированных на конкретных клиентов.
+   An article on the Interface Segregation Principle that emphasizes the importance of designing client-focused interfaces.
 
 2. [Separated Interface by Martin Fowler](https://martinfowler.com/eaaCatalog/separatedInterface.html)  
-   Обсуждение концепции разделенных интерфейсов, где интерфейс определяется отдельно от реализации, что позволяет клиентам сосредотачиваться только на нужных им методах.
+   Discussion of the concept of separated interfaces, where the interface is defined separately from the implementation, allowing clients to focus only on the methods they need.
 
 3. [Interface Implementation Pair by Martin Fowler](https://martinfowler.com/bliki/InterfaceImplementationPair.html)  
-   Статья о том, как правильно проектировать интерфейсы, избегая создания ненужных пар "интерфейс-реализация" и ориентируясь на потребности клиентов.
+   An article on how to properly design interfaces, avoiding the creation of unnecessary "interface-implementation" pairs and focusing on client needs.
